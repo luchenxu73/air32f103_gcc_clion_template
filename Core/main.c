@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <string.h>
+#include <stdint.h>
 #include "air32f10x.h"
 #include "air32f10x_gpio.h"
 #include "delay/delay.h"
@@ -53,6 +55,14 @@ void GPIO_Configuration(void)
 
 int SER_PutChar(int ch);
 
+int uartSendBytes(uint8_t *buf, uint16_t len) {
+	uint16_t i = 0;
+	for (i = 0; i < len; i++) {
+		SER_PutChar(buf[i]);
+	}
+	return i;
+}
+
 int main(void)
 {
 	RCC_ClocksTypeDef clocks;
@@ -60,11 +70,11 @@ int main(void)
 	UART_Configuration(115200);
 	RCC_GetClocksFreq(&clocks); //获取系统时钟频率
 
-	printf("SYSCLK: %3.1fMhz, HCLK: %3.1fMhz, PCLK1: %3.1fMhz, PCLK2: %3.1fMhz, ADCCLK: %3.1fMhz\n",
+	char str[128] = {0};
+	sprintf(str, "SYSCLK: %3.1fMhz, HCLK: %3.1fMhz, PCLK1: %3.1fMhz, PCLK2: %3.1fMhz, ADCCLK: %3.1fMhz\r\n",
 			   (float)clocks.SYSCLK_Frequency / 1000000, (float)clocks.HCLK_Frequency / 1000000,
 			   (float)clocks.PCLK1_Frequency / 1000000, (float)clocks.PCLK2_Frequency / 1000000, (float)clocks.ADCCLK_Frequency / 1000000);
-	SER_PutChar('A');
-	SER_PutChar('\n');
+	
 	
 	/*
 	PRINTF_LOG("SYSCLK: %3.1fMhz, HCLK: %3.1fMhz, PCLK1: %3.1fMhz, PCLK2: %3.1fMhz, ADCCLK: %3.1fMhz\n",
@@ -76,8 +86,7 @@ int main(void)
 
 	while (1)
 	{
-		SER_PutChar('A');
-		SER_PutChar('\n');
+		uartSendBytes((uint8_t *)str, strlen(str));
 		GPIO_SetBits(GPIOB, GPIO_Pin_2);
 		Delay_Ms(200);
 		GPIO_ResetBits(GPIOB, GPIO_Pin_2);
