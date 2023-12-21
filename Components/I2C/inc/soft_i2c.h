@@ -7,7 +7,7 @@
 
 #include "air32f10x.h"
 #include <stdint.h>
-#include "stdio.h"
+#include <stdio.h>
 
 /* 定义控制 SDA SCL 的宏 标准库版
 #define I2C_SDA_UP        GPIO_SetBits  (GPIOC,GPIO_PIN_8)    //SDA高电平

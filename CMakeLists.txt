@@ -1,6 +1,6 @@
 set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_VERSION 1)
-cmake_minimum_required(VERSION 3.24)
+cmake_minimum_required(VERSION 3.22)
 
 # specify cross-compilers and tools
 set(CMAKE_C_COMPILER arm-none-eabi-gcc)
@@ -56,6 +56,8 @@ include_directories("Driver/AIR32F10xLib/inc"
         "Core/inc")
 
 include_directories("Components/I2C/inc")
+include_directories("Components")
+include_directories(/home/yarnell/workspace/toolchains/arm-gnu-toolchain-none-eabi-13/arm-none-eabi/include)
 
 add_subdirectory("Components")
 

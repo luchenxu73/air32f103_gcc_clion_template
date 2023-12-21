@@ -133,3 +133,5 @@ dkms.conf
 *.l1p
 *.l2p
 *.iex
+/build
+/.cache

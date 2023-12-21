@@ -1,3 +1,4 @@
+
 /** @addtogroup CMSIS
   * @{
   */
@@ -6,15 +7,69 @@
   * @{
   */  
   
+/** @addtogroup air32f10x_System_Private_Includes
+  * @{
+  */
 
 #include "air32f10x.h"
 
-//#define SYSCLK_FREQ_HSE    HSE_VALUE
-//#define SYSCLK_FREQ_24MHz  24000000 
-//#define SYSCLK_FREQ_36MHz  36000000
-//#define SYSCLK_FREQ_48MHz  48000000
-//#define SYSCLK_FREQ_56MHz  56000000
+/**
+  * @}
+  */
+
+/** @addtogroup air32f10x_System_Private_TypesDefinitions
+  * @{
+  */
+
+/**
+  * @}
+  */
+
+/** @addtogroup air32f10x_System_Private_Defines
+  * @{
+  */
+
+/*!< Uncomment the line corresponding to the desired System clock (SYSCLK)
+   frequency (after reset the HSI is used as SYSCLK source)
+   
+   IMPORTANT NOTE:
+   ============== 
+   1. After each device reset the HSI is used as System clock source.
+
+   2. Please make sure that the selected System clock doesn't exceed your device's
+      maximum frequency.
+      
+   3. If none of the define below is enabled, the HSI is used as System clock
+    source.
+
+   4. The System clock configuration functions provided within this file assume that:
+        - For Low, Medium and High density Value line devices an external 8MHz 
+          crystal is used to drive the System clock.
+        - For Low, Medium and High density devices an external 8MHz crystal is
+          used to drive the System clock.
+        - For Connectivity line devices an external 25MHz crystal is used to drive
+          the System clock.
+     If you are using different crystal you have to adapt those functions accordingly.
+    */
+    
+#if defined (air32f10x_LD_VL) || (defined air32f10x_MD_VL) || (defined air32f10x_HD_VL)
+/* #define SYSCLK_FREQ_HSE    HSE_VALUE */
+ #define SYSCLK_FREQ_24MHz  24000000
+#else
+/* #define SYSCLK_FREQ_HSE    HSE_VALUE */
+/* #define SYSCLK_FREQ_24MHz  24000000 */ 
+/* #define SYSCLK_FREQ_36MHz  36000000 */
+/* #define SYSCLK_FREQ_48MHz  48000000 */
+/* #define SYSCLK_FREQ_56MHz  56000000 */
 #define SYSCLK_FREQ_72MHz  72000000
+#endif
+
+/*!< Uncomment the following line if you need to use external SRAM mounted
+     on air3210E-EVAL board (air32 High density and XL-density devices) or on 
+     air32100E-EVAL board (air32 High-density value line devices) as data memory */ 
+#if defined (air32f10x_HD) || (defined air32f10x_XL) || (defined air32f10x_HD_VL)
+/* #define DATA_IN_ExtSRAM */
+#endif
 
 /*!< Uncomment the following line if you need to relocate your vector Table in
      Internal SRAM. */ 
@@ -110,7 +165,11 @@ void SystemInit (void)
   RCC->CR |= (uint32_t)0x00000001;
 
   /* Reset SW, HPRE, PPRE1, PPRE2, ADCPRE and MCO bits */
-  RCC->CFGR &= (uint32_t)0xF8FF0000; 
+#ifndef air32f10x_CL
+  RCC->CFGR &= (uint32_t)0xF8FF0000;
+#else
+  RCC->CFGR &= (uint32_t)0xF0FF0000;
+#endif /* air32f10x_CL */   
   
   /* Reset HSEON, CSSON and PLLON bits */
   RCC->CR &= (uint32_t)0xFEF6FFFF;
@@ -121,9 +180,32 @@ void SystemInit (void)
   /* Reset PLLSRC, PLLXTPRE, PLLMUL and USBPRE/OTGFSPRE bits */
   RCC->CFGR &= (uint32_t)0xFF80FFFF;
 
+#ifdef air32f10x_CL
+  /* Reset PLL2ON and PLL3ON bits */
+  RCC->CR &= (uint32_t)0xEBFFFFFF;
+
+  /* Disable all interrupts and clear pending bits  */
+  RCC->CIR = 0x00FF0000;
+
+  /* Reset CFGR2 register */
+  RCC->CFGR2 = 0x00000000;
+#elif defined (air32f10x_LD_VL) || defined (air32f10x_MD_VL) || (defined air32f10x_HD_VL)
   /* Disable all interrupts and clear pending bits  */
   RCC->CIR = 0x009F0000;
-	
+
+  /* Reset CFGR2 register */
+  RCC->CFGR2 = 0x00000000;      
+#else
+  /* Disable all interrupts and clear pending bits  */
+  RCC->CIR = 0x009F0000;
+#endif /* air32f10x_CL */
+    
+#if defined (air32f10x_HD) || (defined air32f10x_XL) || (defined air32f10x_HD_VL)
+  #ifdef DATA_IN_ExtSRAM
+    SystemInit_ExtMemCtl(); 
+  #endif /* DATA_IN_ExtSRAM */
+#endif 
+
   /* Configure the System clock frequency, HCLK, PCLK2 and PCLK1 prescalers */
   /* Configure the Flash Latency cycles and enable prefetch buffer */
   SetSysClock();
@@ -173,6 +255,14 @@ void SystemInit (void)
 void SystemCoreClockUpdate (void)
 {
   uint32_t tmp = 0, pllmull = 0, pllsource = 0;
+
+#ifdef  air32f10x_CL
+  uint32_t prediv1source = 0, prediv1factor = 0, prediv2factor = 0, pll2mull = 0;
+#endif /* air32f10x_CL */
+
+#if defined (air32f10x_LD_VL) || defined (air32f10x_MD_VL) || (defined air32f10x_HD_VL)
+  uint32_t prediv1factor = 0;
+#endif /* air32f10x_LD_VL or air32f10x_MD_VL or air32f10x_HD_VL */
     
   /* Get SYSCLK source -------------------------------------------------------*/
   tmp = RCC->CFGR & RCC_CFGR_SWS;
@@ -190,7 +280,8 @@ void SystemCoreClockUpdate (void)
       /* Get PLL clock source and multiplication factor ----------------------*/
       pllmull = RCC->CFGR & RCC_CFGR_PLLMULL;
       pllsource = RCC->CFGR & RCC_CFGR_PLLSRC;
-          
+      
+#ifndef air32f10x_CL      
       pllmull = ( pllmull >> 18) + 2;
       
       if (pllsource == 0x00)
@@ -200,6 +291,11 @@ void SystemCoreClockUpdate (void)
       }
       else
       {
+ #if defined (air32f10x_LD_VL) || defined (air32f10x_MD_VL) || (defined air32f10x_HD_VL)
+       prediv1factor = (RCC->CFGR2 & RCC_CFGR2_PREDIV1) + 1;
+       /* HSE oscillator clock selected as PREDIV1 clock entry */
+       SystemCoreClock = (HSE_VALUE / prediv1factor) * pllmull; 
+ #else
         /* HSE selected as PLL clock entry */
         if ((RCC->CFGR & RCC_CFGR_PLLXTPRE) != (uint32_t)RESET)
         {/* HSE oscillator clock divided by 2 */
@@ -209,8 +305,47 @@ void SystemCoreClockUpdate (void)
         {
           SystemCoreClock = HSE_VALUE * pllmull;
         }
-
+ #endif
       }
+#else
+      pllmull = pllmull >> 18;
+      
+      if (pllmull != 0x0D)
+      {
+         pllmull += 2;
+      }
+      else
+      { /* PLL multiplication factor = PLL input clock * 6.5 */
+        pllmull = 13 / 2; 
+      }
+            
+      if (pllsource == 0x00)
+      {
+        /* HSI oscillator clock divided by 2 selected as PLL clock entry */
+        SystemCoreClock = (HSI_VALUE >> 1) * pllmull;
+      }
+      else
+      {/* PREDIV1 selected as PLL clock entry */
+        
+        /* Get PREDIV1 clock source and division factor */
+        prediv1source = RCC->CFGR2 & RCC_CFGR2_PREDIV1SRC;
+        prediv1factor = (RCC->CFGR2 & RCC_CFGR2_PREDIV1) + 1;
+        
+        if (prediv1source == 0)
+        { 
+          /* HSE oscillator clock selected as PREDIV1 clock entry */
+          SystemCoreClock = (HSE_VALUE / prediv1factor) * pllmull;          
+        }
+        else
+        {/* PLL2 clock selected as PREDIV1 clock entry */
+          
+          /* Get PREDIV2 division factor and PLL2 multiplication factor */
+          prediv2factor = ((RCC->CFGR2 & RCC_CFGR2_PREDIV2) >> 4) + 1;
+          pll2mull = ((RCC->CFGR2 & RCC_CFGR2_PLL2MUL) >> 8 ) + 2; 
+          SystemCoreClock = (((HSE_VALUE / prediv2factor) * pll2mull) / prediv1factor) * pllmull;                         
+        }
+      }
+#endif /* air32f10x_CL */ 
       break;
 
     default:
@@ -250,6 +385,59 @@ static void SetSysClock(void)
     source (default after reset) */ 
 }
 
+/**
+  * @brief  Setup the external memory controller. Called in startup_air32f10x.s 
+  *          before jump to __main
+  * @param  None
+  * @retval None
+  */ 
+#ifdef DATA_IN_ExtSRAM
+/**
+  * @brief  Setup the external memory controller. 
+  *         Called in startup_air32f10x_xx.s/.c before jump to main.
+  * 	      This function configures the external SRAM mounted on air3210E-EVAL
+  *         board (air32 High density devices). This SRAM will be used as program
+  *         data memory (including heap and stack).
+  * @param  None
+  * @retval None
+  */ 
+void SystemInit_ExtMemCtl(void) 
+{
+/*!< FSMC Bank1 NOR/SRAM3 is used for the air3210E-EVAL, if another Bank is 
+  required, then adjust the Register Addresses */
+
+  /* Enable FSMC clock */
+  RCC->AHBENR = 0x00000114;
+  
+  /* Enable GPIOD, GPIOE, GPIOF and GPIOG clocks */  
+  RCC->APB2ENR = 0x000001E0;
+  
+/* ---------------  SRAM Data lines, NOE and NWE configuration ---------------*/
+/*----------------  SRAM Address lines configuration -------------------------*/
+/*----------------  NOE and NWE configuration --------------------------------*/  
+/*----------------  NE3 configuration ----------------------------------------*/
+/*----------------  NBL0, NBL1 configuration ---------------------------------*/
+  
+  GPIOD->CRL = 0x44BB44BB;  
+  GPIOD->CRH = 0xBBBBBBBB;
+
+  GPIOE->CRL = 0xB44444BB;  
+  GPIOE->CRH = 0xBBBBBBBB;
+
+  GPIOF->CRL = 0x44BBBBBB;  
+  GPIOF->CRH = 0xBBBB4444;
+
+  GPIOG->CRL = 0x44BBBBBB;  
+  GPIOG->CRH = 0x44444B44;
+   
+/*----------------  FSMC Configuration ---------------------------------------*/  
+/*----------------  Enable FSMC Bank1_SRAM Bank ------------------------------*/
+  
+  FSMC_Bank1->BTCR[4] = 0x00001011;
+  FSMC_Bank1->BTCR[5] = 0x00000200;
+}
+#endif /* DATA_IN_ExtSRAM */
+
 #ifdef SYSCLK_FREQ_HSE
 /**
   * @brief  Selects HSE as System clock source and configure HCLK, PCLK2
@@ -284,14 +472,28 @@ static void SetSysClockToHSE(void)
 
   if (HSEStatus == (uint32_t)0x01)
   {
+
+#if !defined air32f10x_LD_VL && !defined air32f10x_MD_VL && !defined air32f10x_HD_VL
     /* Enable Prefetch Buffer */
     FLASH->ACR |= FLASH_ACR_PRFTBE;
 
     /* Flash 0 wait state */
     FLASH->ACR &= (uint32_t)((uint32_t)~FLASH_ACR_LATENCY);
 
+#ifndef air32f10x_CL
     FLASH->ACR |= (uint32_t)FLASH_ACR_LATENCY_0;
-
+#else
+    if (HSE_VALUE <= 24000000)
+	{
+      FLASH->ACR |= (uint32_t)FLASH_ACR_LATENCY_0;
+	}
+	else
+	{
+      FLASH->ACR |= (uint32_t)FLASH_ACR_LATENCY_1;
+	}
+#endif /* air32f10x_CL */
+#endif
+ 
     /* HCLK = SYSCLK */
     RCC->CFGR |= (uint32_t)RCC_CFGR_HPRE_DIV1;
       
@@ -349,12 +551,14 @@ static void SetSysClockTo24(void)
 
   if (HSEStatus == (uint32_t)0x01)
   {
+#if !defined air32f10x_LD_VL && !defined air32f10x_MD_VL && !defined air32f10x_HD_VL 
     /* Enable Prefetch Buffer */
     FLASH->ACR |= FLASH_ACR_PRFTBE;
 
     /* Flash 0 wait state */
     FLASH->ACR &= (uint32_t)((uint32_t)~FLASH_ACR_LATENCY);
     FLASH->ACR |= (uint32_t)FLASH_ACR_LATENCY_0;    
+#endif
  
     /* HCLK = SYSCLK */
     RCC->CFGR |= (uint32_t)RCC_CFGR_HPRE_DIV1;
@@ -365,9 +569,35 @@ static void SetSysClockTo24(void)
     /* PCLK1 = HCLK */
     RCC->CFGR |= (uint32_t)RCC_CFGR_PPRE1_DIV1;
     
+#ifdef air32f10x_CL
+    /* Configure PLLs ------------------------------------------------------*/
+    /* PLL configuration: PLLCLK = PREDIV1 * 6 = 24 MHz */ 
+    RCC->CFGR &= (uint32_t)~(RCC_CFGR_PLLXTPRE | RCC_CFGR_PLLSRC | RCC_CFGR_PLLMULL);
+    RCC->CFGR |= (uint32_t)(RCC_CFGR_PLLXTPRE_PREDIV1 | RCC_CFGR_PLLSRC_PREDIV1 | 
+                            RCC_CFGR_PLLMULL6); 
+
+    /* PLL2 configuration: PLL2CLK = (HSE / 5) * 8 = 40 MHz */
+    /* PREDIV1 configuration: PREDIV1CLK = PLL2 / 10 = 4 MHz */       
+    RCC->CFGR2 &= (uint32_t)~(RCC_CFGR2_PREDIV2 | RCC_CFGR2_PLL2MUL |
+                              RCC_CFGR2_PREDIV1 | RCC_CFGR2_PREDIV1SRC);
+    RCC->CFGR2 |= (uint32_t)(RCC_CFGR2_PREDIV2_DIV5 | RCC_CFGR2_PLL2MUL8 |
+                             RCC_CFGR2_PREDIV1SRC_PLL2 | RCC_CFGR2_PREDIV1_DIV10);
+  
+    /* Enable PLL2 */
+    RCC->CR |= RCC_CR_PLL2ON;
+    /* Wait till PLL2 is ready */
+    while((RCC->CR & RCC_CR_PLL2RDY) == 0)
+    {
+    }   
+#elif defined (air32f10x_LD_VL) || defined (air32f10x_MD_VL) || defined (air32f10x_HD_VL)
+    /*  PLL configuration:  = (HSE / 2) * 6 = 24 MHz */
+    RCC->CFGR &= (uint32_t)((uint32_t)~(RCC_CFGR_PLLSRC | RCC_CFGR_PLLXTPRE | RCC_CFGR_PLLMULL));
+    RCC->CFGR |= (uint32_t)(RCC_CFGR_PLLSRC_PREDIV1 | RCC_CFGR_PLLXTPRE_PREDIV1_Div2 | RCC_CFGR_PLLMULL6);
+#else    
     /*  PLL configuration:  = (HSE / 2) * 6 = 24 MHz */
     RCC->CFGR &= (uint32_t)((uint32_t)~(RCC_CFGR_PLLSRC | RCC_CFGR_PLLXTPRE | RCC_CFGR_PLLMULL));
     RCC->CFGR |= (uint32_t)(RCC_CFGR_PLLSRC_HSE | RCC_CFGR_PLLXTPRE_HSE_Div2 | RCC_CFGR_PLLMULL6);
+#endif /* air32f10x_CL */
 
     /* Enable PLL */
     RCC->CR |= RCC_CR_PLLON;
@@ -440,10 +670,35 @@ static void SetSysClockTo36(void)
     
     /* PCLK1 = HCLK */
     RCC->CFGR |= (uint32_t)RCC_CFGR_PPRE1_DIV1;
-       
+    
+#ifdef air32f10x_CL
+    /* Configure PLLs ------------------------------------------------------*/
+    
+    /* PLL configuration: PLLCLK = PREDIV1 * 9 = 36 MHz */ 
+    RCC->CFGR &= (uint32_t)~(RCC_CFGR_PLLXTPRE | RCC_CFGR_PLLSRC | RCC_CFGR_PLLMULL);
+    RCC->CFGR |= (uint32_t)(RCC_CFGR_PLLXTPRE_PREDIV1 | RCC_CFGR_PLLSRC_PREDIV1 | 
+                            RCC_CFGR_PLLMULL9); 
+
+	/*!< PLL2 configuration: PLL2CLK = (HSE / 5) * 8 = 40 MHz */
+    /* PREDIV1 configuration: PREDIV1CLK = PLL2 / 10 = 4 MHz */
+        
+    RCC->CFGR2 &= (uint32_t)~(RCC_CFGR2_PREDIV2 | RCC_CFGR2_PLL2MUL |
+                              RCC_CFGR2_PREDIV1 | RCC_CFGR2_PREDIV1SRC);
+    RCC->CFGR2 |= (uint32_t)(RCC_CFGR2_PREDIV2_DIV5 | RCC_CFGR2_PLL2MUL8 |
+                             RCC_CFGR2_PREDIV1SRC_PLL2 | RCC_CFGR2_PREDIV1_DIV10);
+  
+    /* Enable PLL2 */
+    RCC->CR |= RCC_CR_PLL2ON;
+    /* Wait till PLL2 is ready */
+    while((RCC->CR & RCC_CR_PLL2RDY) == 0)
+    {
+    }
+    
+#else    
     /*  PLL configuration: PLLCLK = (HSE / 2) * 9 = 36 MHz */
     RCC->CFGR &= (uint32_t)((uint32_t)~(RCC_CFGR_PLLSRC | RCC_CFGR_PLLXTPRE | RCC_CFGR_PLLMULL));
     RCC->CFGR |= (uint32_t)(RCC_CFGR_PLLSRC_HSE | RCC_CFGR_PLLXTPRE_HSE_Div2 | RCC_CFGR_PLLMULL9);
+#endif /* air32f10x_CL */
 
     /* Enable PLL */
     RCC->CR |= RCC_CR_PLLON;
@@ -517,9 +772,33 @@ static void SetSysClockTo48(void)
     /* PCLK1 = HCLK */
     RCC->CFGR |= (uint32_t)RCC_CFGR_PPRE1_DIV2;
     
+#ifdef air32f10x_CL
+    /* Configure PLLs ------------------------------------------------------*/
+    /* PLL2 configuration: PLL2CLK = (HSE / 5) * 8 = 40 MHz */
+    /* PREDIV1 configuration: PREDIV1CLK = PLL2 / 5 = 8 MHz */
+        
+    RCC->CFGR2 &= (uint32_t)~(RCC_CFGR2_PREDIV2 | RCC_CFGR2_PLL2MUL |
+                              RCC_CFGR2_PREDIV1 | RCC_CFGR2_PREDIV1SRC);
+    RCC->CFGR2 |= (uint32_t)(RCC_CFGR2_PREDIV2_DIV5 | RCC_CFGR2_PLL2MUL8 |
+                             RCC_CFGR2_PREDIV1SRC_PLL2 | RCC_CFGR2_PREDIV1_DIV5);
+  
+    /* Enable PLL2 */
+    RCC->CR |= RCC_CR_PLL2ON;
+    /* Wait till PLL2 is ready */
+    while((RCC->CR & RCC_CR_PLL2RDY) == 0)
+    {
+    }
+    
+   
+    /* PLL configuration: PLLCLK = PREDIV1 * 6 = 48 MHz */ 
+    RCC->CFGR &= (uint32_t)~(RCC_CFGR_PLLXTPRE | RCC_CFGR_PLLSRC | RCC_CFGR_PLLMULL);
+    RCC->CFGR |= (uint32_t)(RCC_CFGR_PLLXTPRE_PREDIV1 | RCC_CFGR_PLLSRC_PREDIV1 | 
+                            RCC_CFGR_PLLMULL6); 
+#else    
     /*  PLL configuration: PLLCLK = HSE * 6 = 48 MHz */
     RCC->CFGR &= (uint32_t)((uint32_t)~(RCC_CFGR_PLLSRC | RCC_CFGR_PLLXTPRE | RCC_CFGR_PLLMULL));
     RCC->CFGR |= (uint32_t)(RCC_CFGR_PLLSRC_HSE | RCC_CFGR_PLLMULL6);
+#endif /* air32f10x_CL */
 
     /* Enable PLL */
     RCC->CR |= RCC_CR_PLLON;
@@ -594,9 +873,34 @@ static void SetSysClockTo56(void)
     /* PCLK1 = HCLK */
     RCC->CFGR |= (uint32_t)RCC_CFGR_PPRE1_DIV2;
 
+#ifdef air32f10x_CL
+    /* Configure PLLs ------------------------------------------------------*/
+    /* PLL2 configuration: PLL2CLK = (HSE / 5) * 8 = 40 MHz */
+    /* PREDIV1 configuration: PREDIV1CLK = PLL2 / 5 = 8 MHz */
+        
+    RCC->CFGR2 &= (uint32_t)~(RCC_CFGR2_PREDIV2 | RCC_CFGR2_PLL2MUL |
+                              RCC_CFGR2_PREDIV1 | RCC_CFGR2_PREDIV1SRC);
+    RCC->CFGR2 |= (uint32_t)(RCC_CFGR2_PREDIV2_DIV5 | RCC_CFGR2_PLL2MUL8 |
+                             RCC_CFGR2_PREDIV1SRC_PLL2 | RCC_CFGR2_PREDIV1_DIV5);
+  
+    /* Enable PLL2 */
+    RCC->CR |= RCC_CR_PLL2ON;
+    /* Wait till PLL2 is ready */
+    while((RCC->CR & RCC_CR_PLL2RDY) == 0)
+    {
+    }
+    
+   
+    /* PLL configuration: PLLCLK = PREDIV1 * 7 = 56 MHz */ 
+    RCC->CFGR &= (uint32_t)~(RCC_CFGR_PLLXTPRE | RCC_CFGR_PLLSRC | RCC_CFGR_PLLMULL);
+    RCC->CFGR |= (uint32_t)(RCC_CFGR_PLLXTPRE_PREDIV1 | RCC_CFGR_PLLSRC_PREDIV1 | 
+                            RCC_CFGR_PLLMULL7); 
+#else     
     /* PLL configuration: PLLCLK = HSE * 7 = 56 MHz */
     RCC->CFGR &= (uint32_t)((uint32_t)~(RCC_CFGR_PLLSRC | RCC_CFGR_PLLXTPRE | RCC_CFGR_PLLMULL));
     RCC->CFGR |= (uint32_t)(RCC_CFGR_PLLSRC_HSE | RCC_CFGR_PLLMULL7);
+
+#endif /* air32f10x_CL */
 
     /* Enable PLL */
     RCC->CR |= RCC_CR_PLLON;
@@ -672,10 +976,34 @@ static void SetSysClockTo72(void)
     /* PCLK1 = HCLK */
     RCC->CFGR |= (uint32_t)RCC_CFGR_PPRE1_DIV2;
 
+#ifdef air32f10x_CL
+    /* Configure PLLs ------------------------------------------------------*/
+    /* PLL2 configuration: PLL2CLK = (HSE / 5) * 8 = 40 MHz */
+    /* PREDIV1 configuration: PREDIV1CLK = PLL2 / 5 = 8 MHz */
+        
+    RCC->CFGR2 &= (uint32_t)~(RCC_CFGR2_PREDIV2 | RCC_CFGR2_PLL2MUL |
+                              RCC_CFGR2_PREDIV1 | RCC_CFGR2_PREDIV1SRC);
+    RCC->CFGR2 |= (uint32_t)(RCC_CFGR2_PREDIV2_DIV5 | RCC_CFGR2_PLL2MUL8 |
+                             RCC_CFGR2_PREDIV1SRC_PLL2 | RCC_CFGR2_PREDIV1_DIV5);
+  
+    /* Enable PLL2 */
+    RCC->CR |= RCC_CR_PLL2ON;
+    /* Wait till PLL2 is ready */
+    while((RCC->CR & RCC_CR_PLL2RDY) == 0)
+    {
+    }
+    
+   
+    /* PLL configuration: PLLCLK = PREDIV1 * 9 = 72 MHz */ 
+    RCC->CFGR &= (uint32_t)~(RCC_CFGR_PLLXTPRE | RCC_CFGR_PLLSRC | RCC_CFGR_PLLMULL);
+    RCC->CFGR |= (uint32_t)(RCC_CFGR_PLLXTPRE_PREDIV1 | RCC_CFGR_PLLSRC_PREDIV1 | 
+                            RCC_CFGR_PLLMULL9); 
+#else    
     /*  PLL configuration: PLLCLK = HSE * 9 = 72 MHz */
     RCC->CFGR &= (uint32_t)((uint32_t)~(RCC_CFGR_PLLSRC | RCC_CFGR_PLLXTPRE |
                                         RCC_CFGR_PLLMULL));
     RCC->CFGR |= (uint32_t)(RCC_CFGR_PLLSRC_HSE | RCC_CFGR_PLLMULL9);
+#endif /* air32f10x_CL */
 
     /* Enable PLL */
     RCC->CR |= RCC_CR_PLLON;
