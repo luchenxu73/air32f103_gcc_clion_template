@@ -30,12 +30,17 @@ int main(void)
 	UART_Configuration(115200); //串口初始化
 	GPIO_Configuration();		//GPIO初始化
 
+	RCC_ClocksTypeDef clocks;
+	RCC_GetClocksFreq(&clocks); //获取系统时钟频率
+
 	while (1)
 	{
+		printf("SYSCLK: %uMhz, HCLK: %uMhz, PCLK1: %uMhz, PCLK2: %uMhz, ADCCLK: %uMhz\r\n",
+			   clocks.SYSCLK_Frequency / 1000000, clocks.HCLK_Frequency / 1000000,
+			   clocks.PCLK1_Frequency / 1000000, clocks.PCLK2_Frequency / 1000000, clocks.ADCCLK_Frequency / 1000000);
 		i = !i;
 		GPIO_WriteBit(GPIOB, GPIO_Pin_2, i);
 		Delay_S(1);
-		printf("1S----------\r\n");
 	}
 }
 
