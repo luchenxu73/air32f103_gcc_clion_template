@@ -2,6 +2,8 @@ set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_VERSION 1)
 cmake_minimum_required(VERSION 3.22)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # specify cross-compilers and tools
 set(CMAKE_C_COMPILER arm-none-eabi-gcc)
 set(CMAKE_CXX_COMPILER arm-none-eabi-g++)
@@ -56,7 +58,7 @@ include_directories("Driver/AIR32F10xLib/inc"
         "Core/inc")
 
 include_directories("Components/I2C/inc")
-include_directories("Components")
+include_directories("Components/delay")
 include_directories(/home/yarnell/workspace/toolchains/arm-gnu-toolchain-none-eabi-13/arm-none-eabi/include)
 
 add_subdirectory("Components")
@@ -90,4 +92,4 @@ add_custom_command(TARGET ${PROJECT_NAME}.elf POST_BUILD
         COMMENT "Building ${HEX_FILE}
 Building ${BIN_FILE}")
 
-
+file(RENAME ${PROJECT_BINARY_DIR}/compile_commands.json ${PROJECT_SOURCE_DIR}/compile_commands.json)
