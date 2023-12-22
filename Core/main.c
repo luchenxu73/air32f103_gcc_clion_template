@@ -37,8 +37,7 @@ int main(void) {
             (float) clocks.ADCCLK_Frequency / 1000000);
 
     GPIO_Configuration();
-    float  a= 1.243;
-    printf("%.5f\r\n",a);
+
     while (1) {
         GPIO_SetBits(GPIO_GROUP_TEST, GPIO_PIN1_TEST);
         Delay_Ms(200);
