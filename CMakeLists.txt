@@ -55,26 +55,28 @@ include_directories("Driver/AIR32F10xLib/inc"
         "Driver/CMSIS/Include"
         "Core/inc")
 
-include_directories("Components/I2C/inc")
+include_directories("Components/Delay/inc")
 
 add_subdirectory("Components")
 
 file(GLOB_RECURSE SOURCES "Driver/*.*" "Core/*.*")
 
-set(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/STM32F103CBTX_FLASH.ld)
+set(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/AIR32F103XB_FLASH.ld)
 
 add_link_options(-Wl,-gc-sections,--print-memory-usage,-Map=${PROJECT_BINARY_DIR}/${PROJECT_NAME}.map)
 add_link_options(-mcpu=cortex-m3 -mthumb -mthumb-interwork)
 
 #使用精简版C库
-#add_link_options(-specs=nano.specs)
-#add_link_options(-specs=nosys.specs)
+add_link_options(-specs=nano.specs)
+add_link_options(-specs=nosys.specs)
+add_link_options(-u_printf_float)
 
 add_link_options(-T ${LINKER_SCRIPT})
 
 add_executable(${PROJECT_NAME}.elf ${SOURCES} ${LINKER_SCRIPT})
 
 target_link_libraries(${PROJECT_NAME}.elf USER_LIB)
+
 # 不链接air_crypt库
 #link_libraries("Driver/AIR32F10xLib/lib")
 #target_link_libraries(${PROJECT_NAME}.elf "air_crypt.lib")

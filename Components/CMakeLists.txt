@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
 
-include_directories("I2C/inc")
+include_directories("Delay/inc")
 
 file(GLOB_RECURSE USR_SRC "./*.c")
 
