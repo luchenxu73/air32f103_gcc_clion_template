@@ -2,6 +2,13 @@
 #include <stdio.h>
 #include "delay.h"
 
+#define GPIO_GROUP_TEST GPIOB
+#define GPIO_MODE_TEST GPIO_Mode_Out_PP
+#define GPIO_SPEED_TEST GPIO_Speed_50MHz
+#define GPIO_PIN1_TEST GPIO_Pin_2
+#define GPIO_PIN2_TEST GPIO_Pin_10
+#define GPIO_PIN3_TEST GPIO_Pin_11
+
 #define PRINTF_LOG printf
 
 USART_TypeDef *USART_TEST = USART1;
@@ -9,6 +16,8 @@ USART_TypeDef *USART_TEST = USART1;
 void UART_Configuration(uint32_t bound);
 
 void RCC_ClkConfiguration(void);
+
+void GPIO_Configuration(void);
 
 int main(void) {
     RCC_ClocksTypeDef clocks;
@@ -27,11 +36,36 @@ int main(void) {
             (float) clocks.PCLK1_Frequency / 1000000, (float) clocks.PCLK2_Frequency / 1000000,
             (float) clocks.ADCCLK_Frequency / 1000000);
 
+    GPIO_Configuration();
+    float  a= 1.243;
+    printf("%.5f\r\n",a);
     while (1) {
-        Delay_S(1);
-        printf("-1S\r\n");
+        GPIO_SetBits(GPIO_GROUP_TEST, GPIO_PIN1_TEST);
+        Delay_Ms(200);
+        GPIO_SetBits(GPIO_GROUP_TEST, GPIO_PIN2_TEST);
+        Delay_Ms(200);
+        GPIO_SetBits(GPIO_GROUP_TEST, GPIO_PIN3_TEST);
+        Delay_Ms(200);
+        GPIO_ResetBits(GPIO_GROUP_TEST, GPIO_PIN1_TEST);
+        Delay_Ms(200);
+        GPIO_ResetBits(GPIO_GROUP_TEST, GPIO_PIN2_TEST);
+        Delay_Ms(200);
+        GPIO_ResetBits(GPIO_GROUP_TEST, GPIO_PIN3_TEST);
+        Delay_Ms(200);
     }
 }
+
+void GPIO_Configuration(void) {
+    GPIO_InitTypeDef GPIO_InitStructure;
+
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE); //使能GPIOB时钟
+
+    GPIO_InitStructure.GPIO_Pin = GPIO_PIN1_TEST | GPIO_PIN2_TEST | GPIO_PIN3_TEST;
+    GPIO_InitStructure.GPIO_Speed = GPIO_SPEED_TEST; //速度50MHz
+    GPIO_InitStructure.GPIO_Mode = GPIO_MODE_TEST;     //输出模式
+    GPIO_Init(GPIO_GROUP_TEST, &GPIO_InitStructure); //初始化GPIOB.2,10,11
+}
+
 
 void RCC_ClkConfiguration(void) {
     RCC_DeInit(); //复位RCC寄存器

@@ -10,7 +10,7 @@ air32f103是合宙的一款芯片，见[官方WIKI](https://wiki.luatos.com/chip
 
 本仓库提供了gcc下的一个裸机模板，如需freertos模板，可以向我邮件索要。
 
-`main.c`中内容为合宙官方的 `RCC` demo，芯片将运行在216M主频下，并在串口打印相应信息。可以使用官方提供的[开发板](https://wiki.luatos.com/chips/air32f103/board.html)验证。
+`main.c`中内容为合宙官方的 `GPIO` 流水灯demo，芯片将运行在216M主频下，并在串口打印相应信息。可以使用官方提供的[开发板](https://wiki.luatos.com/chips/air32f103/board.html)验证。
 
 
 ## 注意事项
@@ -31,6 +31,7 @@ add_link_options(-specs=nosys.specs)
 add_link_options(-u_printf_float)
 ```
 5. 合宙官方未提供`crypt`在`gcc`下的静态库，因此该功能无法使用。
+7. gcc下`printf`请注意添加`\n`，如果没有`\n`，则无法刷新缓冲并输出，如需强制输出，可以使用`fflush(stdout);`刷新缓冲。用户也可以在熟悉gcc的前提下根据自己需求定制`printf`。 
 6. 本仓库包含一个`stm32f103c8_blue_pill.cfg`，可以在Clion IDE中使用dap下载器烧录程序并进行调试。 
 
 
