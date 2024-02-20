@@ -648,7 +648,7 @@ __STATIC_INLINE void SetStrt(void)
     __ASM("BX 		lr");	
 }
 #elif defined(__GNUC__)
-void SetStrt(void)
+__attribute__((noinline)) void SetStrt(void)
 {
     __asm("MOV     	R0, PC");
     __asm("LDR 		R1, [R0,#16]");
